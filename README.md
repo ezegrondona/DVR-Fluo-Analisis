@@ -5,7 +5,7 @@
 [![Java](https://img.shields.io/badge/Java-8%2B-orange.svg)](https://adoptium.net/)
 
 <div align="center">
-<img src="src/main/resources/dvr-fluo-analisis-logo.png" width="300" alt="DVR Fluo Análisis">
+<img src="src/main/resources/DVR-Fluo-Analisis-logo.png" width="300" alt="DVR Fluo Análisis">
 </div>
 
 <div align="justify">
@@ -55,10 +55,9 @@ También desde los botones **GUÍA DE USO** y **GUÍA DE CALIBRACIÓN** del prop
 
 ---
 
-## 👥 Autores
+## 👤 Autor
 
-- **Dr. Ezequiel Grondona**
-- **Dra. Ana Lucía De Paul**
+- **Autor:** Dr. Ezequiel Grondona
 - **Institución:** Centro de Microscopía Electrónica — UNC / INICSA / CONICET
 - **Contacto:** 📧 ezequiel.grondona@unc.edu.ar
 
@@ -109,7 +108,7 @@ la derecha, que da la cita ya formateada en APA y en BibTeX.
 
 **BSD 3-Clause.** Podés usar, modificar, redistribuir e incluso vender
 obras derivadas, con dos condiciones: conservar el aviso de copyright
-y la licencia, y no usar el nombre de los autores ni el de la
+y la licencia, y no usar el nombre del autor ni el de la
 institución para promocionar derivados sin permiso. El texto completo
 está en [`LICENSE`](LICENSE).
 

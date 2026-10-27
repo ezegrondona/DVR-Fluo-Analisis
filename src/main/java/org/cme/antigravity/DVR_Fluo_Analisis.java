@@ -26,14 +26,23 @@ import ij.plugin.filter.Analyzer;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
 import java.awt.Button;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Desktop;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.Label;
+import java.awt.LayoutManager;
 import java.awt.Panel;
 import java.awt.Window;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,7 +51,6 @@ import java.util.Map;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.cme.antigravity.AntigravityBase;
 
 public class DVR_Fluo_Analisis
 implements PlugIn {
@@ -58,6 +66,29 @@ implements PlugIn {
     private static final String URL_CALIBRACION = "https://github.com/ezegrondona/DVR-Fluo-Analisis/blob/main/docs/Gu%C3%ADa%20de%20Calibraci%C3%B3n%20FIJI-ImajeJ.pdf";
     private boolean ir_a_calibrar = false;
 
+    // --- Estetica de los dialogos ------------------------------------------
+    // Estas constantes y los tres metodos de interfaz que siguen
+    // (estilizarDialogo, mostrarInfoPlugin y abrirLink) vivian en una clase
+    // aparte, pensada para compartirse entre complementos. Ahora cada
+    // complemento lleva las suyas y no depende de nadie.
+    //
+    // El motivo es concreto: dos .jar instalados en el mismo Fiji comparten
+    // el classpath. Si los dos traen una clase con el mismo nombre y el mismo
+    // paquete, la maquina virtual carga una sola -la primera que encuentra- y
+    // el otro complemento corre con codigo ajeno, sin aviso y sin error. Con
+    // todo adentro de un unico archivo por complemento eso no puede pasar.
+    private static final Font FONT_SECCION = new Font("SansSerif", Font.BOLD, 13);
+    private static final Font FONT_MENSAJE = new Font("SansSerif", Font.PLAIN, 12);
+    private static final Font FONT_BOTON = new Font("SansSerif", Font.PLAIN, 10);
+    private static final Font FONT_BOTON_BOLD = new Font("SansSerif", Font.BOLD, 10);
+    private static final Color COLOR_CABECERA = new Color(25, 136, 255);
+    private static final Color COLOR_TEXTO_SECCION = new Color(255, 255, 255);
+    private static final Color COLOR_BOTON_INFO = new Color(0, 151, 161);
+    private static final Color COLOR_BOTON_GRIS = new Color(157, 167, 159);
+    private static final Color COLOR_BOTON_TEXTO = new Color(255, 255, 255);
+    private static final Color COLOR_FONDO_GRIS = new Color(240, 245, 240);
+    private static final Color COLOR_BLANCO = Color.WHITE;
+
     public void run(String arg) {
         block11: {
             while (true) {
@@ -69,7 +100,7 @@ implements PlugIn {
                 if (this.ir_a_calibrar) {
                     GenericDialog gd = new GenericDialog("Calibrar imagen");
                     gd.addMessage("1. Abra una imagen y calibre desde SET SCALE.\n2. Cierre la imagen sin guardar (DON'T SAVE).\n3. Presione OK para continuar.");
-                    AntigravityBase.estilizarDialogo(gd, false);
+                    estilizarDialogo(gd, false);
                     gd.setModal(false);
                     gd.showDialog();
                     while (!gd.wasOKed() && !gd.wasCanceled()) {
@@ -124,7 +155,7 @@ implements PlugIn {
                 }
                 GenericDialog gdFinal = new GenericDialog("Analizar otra carpeta");
                 gdFinal.addMessage("Presiona OK para seleccionar otra carpeta o Cancelar para salir.");
-                AntigravityBase.estilizarDialogo(gdFinal, false);
+                estilizarDialogo(gdFinal, false);
                 gdFinal.showDialog();
                 if (gdFinal.wasCanceled()) break;
             }
@@ -175,8 +206,8 @@ implements PlugIn {
         Panel panelInfo = new Panel(new GridLayout(1, 2, 5, 0));
         Button btnAcerca = new Button("ACERCA DEL PLUGIN");
         Button btnGuia = new Button("GUÍA DE USO");
-        btnAcerca.addActionListener(e -> AntigravityBase.mostrarAcercaDe("Analizar Intensidad de Fluorescencia", "Dr. Ezequiel Grondona", "Centro de Microscopia Electronica - UNC - INICSA - CONICET", "ezequiel.grondona@unc.edu.ar"));
-        btnGuia.addActionListener(e -> AntigravityBase.abrirLink(URL_GUIA));
+        btnAcerca.addActionListener(e -> mostrarInfoPlugin());
+        btnGuia.addActionListener(e -> abrirLink(URL_GUIA));
         panelInfo.add(btnAcerca);
         panelInfo.add(btnGuia);
         gd.addPanel(panelInfo);
@@ -185,7 +216,7 @@ implements PlugIn {
         Panel panelCalib = new Panel(new GridLayout(1, 2, 5, 0));
         Button btnGuiaCal = new Button("GUÍA DE CALIBRACIÓN");
         Button btnCalibrar = new Button("CALIBRAR");
-        btnGuiaCal.addActionListener(e -> AntigravityBase.abrirLink(URL_CALIBRACION));
+        btnGuiaCal.addActionListener(e -> abrirLink(URL_CALIBRACION));
         btnCalibrar.addActionListener(e -> {
             this.ir_a_calibrar = true;
             try {
@@ -211,7 +242,7 @@ implements PlugIn {
 
         gd.addMessage("MEDICIÓN DE ÁREA");
         gd.addRadioButtonGroup("", new String[]{"Área de Marca", "Área Total de foto"}, 1, 2, "Área de Marca");
-        AntigravityBase.estilizarDialogo(gd, true);
+        estilizarDialogo(gd, true);
         gd.showDialog();
         if (gd.wasCanceled()) {
             return null;
@@ -220,6 +251,122 @@ implements PlugIn {
             return new Opciones(false, false, false, "");
         }
         return new Opciones(gd.getNextBoolean(), gd.getNextBoolean(), gd.getNextBoolean(), gd.getNextRadioButton());
+    }
+
+    private void estilizarDialogo(GenericDialog gd, boolean esPrincipal) {
+        gd.setBackground(esPrincipal ? COLOR_FONDO_GRIS : COLOR_BLANCO);
+        LayoutManager layout = gd.getLayout();
+        for (Component c : gd.getComponents()) {
+            if (c instanceof Label) {
+                estilizarEtiqueta((Label) c, layout);
+            }
+            if (c instanceof Button) {
+                estilizarBoton((Button) c);
+            }
+            if (!(c instanceof Panel)) continue;
+            Panel p = (Panel) c;
+            p.setBackground(esPrincipal ? COLOR_FONDO_GRIS : COLOR_BLANCO);
+            estirarAlAncho(p, layout);
+            for (Component sub : p.getComponents()) {
+                if (sub instanceof Button) estilizarBoton((Button) sub);
+            }
+        }
+    }
+
+    private void estilizarEtiqueta(Label l, LayoutManager layout) {
+        String txt = l.getText().toUpperCase();
+        // Se prueban las dos escrituras, con tilde y sin ella: los titulos del
+        // dialogo llevan tilde, pero dejar solo esa variante deja el estilo a
+        // merced de como se escriba manana una seccion nueva.
+        boolean esSeccion = txt.contains("INFORMACIÓN") || txt.contains("INFORMACION")
+                || txt.contains("DETERMINACIONES")
+                || txt.contains("MEDICIÓN") || txt.contains("MEDICION")
+                || txt.contains("CALIBRACIÓN") || txt.contains("CALIBRACION")
+                || txt.contains("ENTRENAMIENTO") || txt.contains("RESULTADOS");
+        if (!esSeccion) {
+            l.setFont(FONT_MENSAJE);
+            return;
+        }
+        l.setFont(FONT_SECCION);
+        l.setBackground(COLOR_CABECERA);
+        l.setForeground(COLOR_TEXTO_SECCION);
+        l.setAlignment(Label.CENTER);
+        estirarAlAncho(l, layout);
+    }
+
+    // Las cabeceras de seccion y los paneles de botones se estiran de borde a
+    // borde del dialogo, con el mismo margen lateral. Sin esto quedan al ancho
+    // de su texto y el dialogo se ve desalineado.
+    private void estirarAlAncho(Component c, LayoutManager layout) {
+        if (!(layout instanceof GridBagLayout)) return;
+        GridBagLayout gbl = (GridBagLayout) layout;
+        GridBagConstraints gbc = gbl.getConstraints(c);
+        if (gbc == null) return;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        if (gbc.insets != null) {
+            gbc.insets.left = 10;
+            gbc.insets.right = 10;
+        } else {
+            gbc.insets = new Insets(0, 10, 0, 10);
+        }
+        gbl.setConstraints(c, gbc);
+    }
+
+    // Los botones se reconocen por su etiqueta, no por el orden en que se
+    // agregaron: asi agregar o mover un boton no descoloca los colores.
+    private void estilizarBoton(Button b) {
+        String lbl = b.getLabel().toUpperCase();
+        b.setForeground(COLOR_BOTON_TEXTO);
+        if (lbl.contains("GUÍA DE USO") || lbl.contains("GUIA DE USO")) {
+            b.setFont(FONT_BOTON_BOLD);
+            b.setBackground(COLOR_BOTON_INFO);
+        } else if (lbl.contains("INFO") || lbl.contains("ACERCA")) {
+            b.setFont(FONT_BOTON);
+            b.setBackground(COLOR_BOTON_INFO);
+        } else {
+            b.setFont(FONT_BOTON);
+            b.setBackground(COLOR_BOTON_GRIS);
+        }
+    }
+
+    private void mostrarInfoPlugin() {
+        GenericDialog gd = new GenericDialog("Informacion del Plugin");
+        try {
+            java.net.URL url = getClass().getResource("/DVR-Fluo-Analisis-logo.png");
+            if (url != null) {
+                java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(url);
+                if (img != null) {
+                    int w = 300;
+                    int h = (int) (((double) img.getHeight() / img.getWidth()) * w);
+                    java.awt.Image escalada = img.getScaledInstance(w, h, java.awt.Image.SCALE_SMOOTH);
+                    gd.addImage(new ImagePlus("Logo", escalada));
+                }
+            }
+        } catch (Exception e) {
+            // Ignorar errores de carga de imagen para que el complemento siga funcionando
+        }
+
+        String infoTexto = "<html><center><br><h3>Analizar Intensidad de Fluorescencia</h3>"
+                + "Analisis de Intensidad de Fluorescencia.<br><br>"
+                + "<b>Creado por:</b><br><b>Dr. Ezequiel Grondona</b><br>"
+                + "-UNC - INICSA - CONICET-<br>- 2026 -<br><br>"
+                + "Lea atentamente la guia de uso antes de utilizar el plugin.<br>"
+                + "Consultas y sugerencias:<br>ezequiel.grondona@unc.edu.ar<br></center></html>";
+        Panel panel = new Panel();
+        javax.swing.JLabel etiqueta = new javax.swing.JLabel(infoTexto);
+        panel.add(etiqueta);
+        gd.addPanel(panel);
+
+        estilizarDialogo(gd, false);
+        gd.showDialog();
+    }
+
+    private void abrirLink(String url) {
+        try {
+            Desktop.getDesktop().browse(new URI(url));
+        } catch (Exception e) {
+            IJ.showMessage("Error", "No se pudo abrir el enlace:" + System.lineSeparator() + e.getMessage());
+        }
     }
 
     private void renombrarArchivos(File folderFile) {
@@ -338,7 +485,7 @@ implements PlugIn {
                         }
                         GenericDialog gd = new GenericDialog("Determinar de Fondo");
                         gd.addMessage("1. Dibuje un rectangulo sobre el FONDO de la imagen.\n2. Presione la tecla 'm' para medir.\n3. Presione OK para capturar el valor.");
-                        AntigravityBase.estilizarDialogo(gd, false);
+                        estilizarDialogo(gd, false);
                         gd.setModal(false);
                         gd.showDialog();
                         while (!gd.wasOKed() && !gd.wasCanceled()) {
@@ -358,7 +505,7 @@ implements PlugIn {
                             gdConf.addMessage("ADVERTENCIA: No se detectó ninguna medición.\nUse 'm' para medir el fondo antes de presionar OK.");
                         }
                         gdConf.addNumericField("Valor a restar de todas las " + colorName.toUpperCase() + ":", val, 0);
-                        AntigravityBase.estilizarDialogo(gdConf, false);
+                        estilizarDialogo(gdConf, false);
                         gdConf.showDialog();
                         backgroundValue = gdConf.wasCanceled() ? 0 : (int)gdConf.getNextNumber();
                         
