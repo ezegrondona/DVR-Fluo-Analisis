@@ -5,7 +5,7 @@
 [![Java](https://img.shields.io/badge/Java-8%2B-orange.svg)](https://adoptium.net/)
 
 <div align="center">
-<img src="docs/Fluorescence microscopy analysis logo-Final.png" width="300" alt="DVR Fluo Análisis">
+<img src="src/main/resources/dvr-fluo-analisis-logo.png" width="300" alt="DVR Fluo Análisis">
 </div>
 
 <div align="justify">
