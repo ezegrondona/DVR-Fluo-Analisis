@@ -1,0 +1,35 @@
+# =========================================
+# DVR Fluo Análisis — .gitignore
+# =========================================
+
+# Salida de la compilación de Maven
+target/
+
+# El pom que genera el plugin shade al empaquetar.
+# No se escribe a mano: sale solo de pom.xml.
+dependency-reduced-pom.xml
+
+# El .jar compilado NO va al repositorio: se publica como
+# adjunto en Releases, que es donde la gente lo busca y donde
+# cada version conserva el suyo.
+*.jar
+
+# Notas de trabajo que no son del proyecto
+texto_para_el_release.md
+
+# Java
+*.class
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+nbproject/
+.settings/
+.classpath
+.project
+
+# Sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,66 @@
+# ==========================================================
+#  Cómo citar DVR Fluo Análisis
+# ----------------------------------------------------------
+#  GitHub lee este archivo y muestra el botón
+#  «Cite this repository» en la portada del repositorio.
+#  Zenodo también lo lee al publicar cada versión: de acá
+#  salen los autores, la afiliación y la licencia del
+#  registro.
+#
+#  PENDIENTE: el DOI. Lo acuña Zenodo al publicarse la
+#  primera versión. Cuando exista va acá el de concepto —el
+#  que no cambia nunca y apunta siempre a la más reciente—
+#  más el badge en el README. El DOI propio de cada versión no
+#  se anota: se consulta en la solapa «Versions» del registro.
+# ==========================================================
+
+cff-version: 1.2.0
+
+message: >-
+  Si usás DVR Fluo Análisis en un trabajo publicado, por favor citalo
+  como se indica a continuación.
+
+title: DVR Fluo Análisis
+
+abstract: >-
+  Complemento para FIJI/ImageJ que automatiza la cuantificación de la
+  señal de fluorescencia en imágenes de microscopía. Recorre carpetas
+  de imágenes por canal, segmenta los núcleos marcados con DAPI y mide
+  intensidad y superficie de marca en los canales AF488 y AF594, con
+  sustracción de fondo opcional, y exporta los resultados a planilla de
+  cálculo. Está pensado para quien analiza inmunofluorescencia y
+  necesita un criterio uniforme entre imágenes y entre operadores.
+
+type: software
+
+authors:
+  - family-names: Grondona
+    given-names: Ezequiel
+    affiliation: >-
+      Centro de Microscopía Electrónica, Universidad Nacional de
+      Córdoba — INICSA (CONICET–UNC), Córdoba, Argentina
+    orcid: "https://orcid.org/0009-0004-4155-2001"
+  - family-names: De Paul
+    given-names: Ana Lucía
+    affiliation: >-
+      Centro de Microscopía Electrónica, Universidad Nacional de
+      Córdoba — INICSA (CONICET–UNC), Córdoba, Argentina
+    orcid: "https://orcid.org/0000-0002-6397-8781"
+
+version: 1.0.0
+
+date-released: "2026-10-27"
+
+license: BSD-3-Clause
+
+repository-code: "https://github.com/ezegrondona/DVR-Fluo-Analisis"
+
+keywords:
+  - immunofluorescence
+  - fluorescence microscopy
+  - image analysis
+  - DAPI
+  - FIJI
+  - ImageJ
+  - signal quantification
+  - scientific software

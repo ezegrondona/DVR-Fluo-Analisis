@@ -1,0 +1,68 @@
+===========================================================
+  DVR FLUO ANÁLISIS — COMPONENTES DE TERCEROS
+===========================================================
+
+El código de DVR Fluo Análisis se distribuye bajo licencia BSD
+3-Clause. El texto completo está en LICENSE, que contiene únicamente
+esa licencia y nada más: GitHub y las herramientas de análisis la
+identifican leyendo ese archivo, y cualquier agregado hace que dejen
+de reconocerla. Por eso lo relativo a terceros vive acá.
+
+El archivo .jar que se publica en Releases empaqueta además las
+bibliotecas que se listan abajo, cada una con su propia licencia.
+Todas son permisivas y compatibles con BSD 3-Clause: permiten
+redistribución en forma binaria conservando el aviso de copyright,
+que es el propósito de este archivo.
+
+
+BIBLIOTECAS EMPAQUETADAS DENTRO DEL .jar
+-----------------------------------------
+
+  Apache POI                          Apache License 2.0
+  Apache XMLBeans                     Apache License 2.0
+    Generan el archivo .xlsx con los resultados.
+    https://poi.apache.org/
+
+  Apache Commons Codec                Apache License 2.0
+  Apache Commons IO                   Apache License 2.0
+  Apache Commons Collections 4        Apache License 2.0
+  Apache Commons Compress             Apache License 2.0
+  Apache Commons Math 3               Apache License 2.0
+    Dependencias de Apache POI.
+    https://commons.apache.org/
+
+  Apache Log4j (api y core)           Apache License 2.0
+    Registro de eventos.
+    https://logging.apache.org/log4j/
+
+  SparseBitSet                        Apache License 2.0
+    Dependencia de Apache POI.
+    https://github.com/brettwooldridge/SparseBitSet
+
+  curvesapi                           BSD 3-Clause
+    Dependencia de Apache POI, para el trazado de curvas.
+    https://github.com/virtuald/curvesapi
+
+
+NO EMPAQUETADA, PERO NECESARIA
+-------------------------------
+
+  ImageJ (ij)                         dominio público
+    Es el programa anfitrión. No viaja dentro del .jar —está
+    declarada con alcance "provided"— porque la aporta la
+    instalación de FIJI/ImageJ donde se instala el complemento.
+    https://imagej.net/
+
+
+TEXTO DE LAS LICENCIAS
+-----------------------
+
+  Apache License 2.0
+    https://www.apache.org/licenses/LICENSE-2.0
+
+  BSD 3-Clause
+    https://opensource.org/license/bsd-3-clause
+
+El .jar distribuido incluye además los archivos LICENSE.txt y
+NOTICE.txt que las propias bibliotecas aportan, tal como exige la
+Apache License 2.0.
