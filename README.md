@@ -16,7 +16,7 @@
   
 # Secciones
   
-**[![Descarga](https://img.shields.io/badge/-Descarga-darkblue.svg)](#-descarga)** · **[![Instalación](https://img.shields.io/badge/-Instalación-brown.svg)](#-instalación)** · **[![Guías](https://img.shields.io/badge/-Guías-brown.svg)](#-guía-completa)** · **[![Compilar](https://img.shields.io/badge/-Compilar-brown.svg)](#-compilar-desde-el-código)** · **[![Cómo citar](https://img.shields.io/badge/-Cómo%20citar-brown.svg)](#-cómo-citar)** · **[![Licencia](https://img.shields.io/badge/-Licencia-brown.svg)](#-licencia)**
+**[![Descarga](https://img.shields.io/badge/-Descarga-darkblue.svg)](#-descarga)** · **[![Instalación](https://img.shields.io/badge/-Instalación-darkblue.svg)](#-instalación)** · **[![Guías](https://img.shields.io/badge/-Guías-darkblue.svg)](#-guía-completa)** · **[![Compilar](https://img.shields.io/badge/-Compilar-darkblue.svg)](#-compilar-desde-el-código)** · **[![Cómo citar](https://img.shields.io/badge/-Cómo%20citar-darkblue.svg)](#-cómo-citar)** · **[![Licencia](https://img.shields.io/badge/-Licencia-darkblue.svg)](#-licencia)**
 
 </div>
 
