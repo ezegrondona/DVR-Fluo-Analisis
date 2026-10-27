@@ -3,6 +3,7 @@
 [![FIJI](https://img.shields.io/badge/Programa-FIJI%2FImageJ-red.svg)](https://imagej.net/software/fiji/)
 [![Licencia](https://img.shields.io/badge/Licencia-BSD--3--Clause-green.svg)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-8%2B-orange.svg)](https://adoptium.net/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23697402.svg)](https://doi.org/10.5281/zenodo.23697402)
 
 <div align="center">
 <img src="src/main/resources/DVR-Fluo-Analisis-logo.png" width="300" alt="DVR Fluo Análisis">
@@ -96,11 +97,18 @@ construirla se reconozca y que otro pueda reproducir lo que hiciste.
 
 > Grondona, E., & De Paul, A. L. (2026). *DVR Fluo Análisis* [software].
 > Centro de Microscopía Electrónica, Universidad Nacional de Córdoba —
-> INICSA (CONICET–UNC). https://github.com/ezegrondona/DVR-Fluo-Analisis
+> INICSA (CONICET–UNC). https://doi.org/10.5281/zenodo.23697402
 
 El repositorio incluye un archivo [`CITATION.cff`](CITATION.cff):
 GitHub lo lee y muestra el botón **«Cite this repository»** arriba a
 la derecha, que da la cita ya formateada en APA y en BibTeX.
+
+**Sobre el DOI.** El de arriba es el *concept DOI*: apunta siempre a
+la versión más reciente, así que una cita hecha hoy sigue sirviendo
+cuando se publique una versión nueva. Si necesitás citar una versión
+puntual —por ejemplo para que otro reproduzca exactamente tu análisis—
+cada una tiene el suyo, listado en la solapa *Versions* del
+[registro en Zenodo](https://doi.org/10.5281/zenodo.23697402).
 
 ---
 

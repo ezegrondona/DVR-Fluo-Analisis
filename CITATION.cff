@@ -7,11 +7,10 @@
 #  salen los autores, la afiliación y la licencia del
 #  registro.
 #
-#  PENDIENTE: el DOI. Lo acuña Zenodo al publicarse la
-#  primera versión. Cuando exista va acá el de concepto —el
-#  que no cambia nunca y apunta siempre a la más reciente—
-#  más el badge en el README. El DOI propio de cada versión no
-#  se anota: se consulta en la solapa «Versions» del registro.
+#  El DOI de abajo es el de concepto: no cambia nunca y
+#  apunta siempre a la versión más reciente. El propio de cada
+#  versión no se anota: lo acuña Zenodo al publicar el release
+#  y se consulta en la solapa «Versions» del registro.
 # ==========================================================
 
 cff-version: 1.2.0
@@ -64,3 +63,10 @@ keywords:
   - ImageJ
   - signal quantification
   - scientific software
+
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23697402"
+    description: >-
+      DOI de todas las versiones de DVR Fluo Análisis. Es el que conviene
+      citar: apunta siempre a la más reciente.
