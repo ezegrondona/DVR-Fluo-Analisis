@@ -483,27 +483,52 @@ implements PlugIn {
                             rt.reset(); 
                             rt.show("Results"); // Forzar visibilidad para feedback de tecla 'm'
                         }
-                        GenericDialog gd = new GenericDialog("Determinar de Fondo");
-                        gd.addMessage("1. Dibuje un rectangulo sobre el FONDO de la imagen.\n2. Presione la tecla 'm' para medir.\n3. Presione OK para capturar el valor.");
-                        estilizarDialogo(gd, false);
-                        gd.setModal(false);
-                        gd.showDialog();
-                        while (!gd.wasOKed() && !gd.wasCanceled()) {
-                            IJ.wait(100);
+                        // Se vuelve a pedir la medicion hasta que exista. El
+                        // cartel que pide medir es NO modal a proposito, para
+                        // que se pueda dibujar el rectangulo y apretar "m" con
+                        // el abierto. El aviso de que falta medir, en cambio,
+                        // es modal: mientras esta en pantalla no se puede medir
+                        // nada, asi que no alcanza con avisar, hay que cerrarlo
+                        // y devolver el control al cartel anterior.
+                        double val;
+                        while (true) {
+                            GenericDialog gd = new GenericDialog("Determinar de Fondo");
+                            gd.addMessage("1. Dibuje un rectangulo sobre el FONDO de la imagen.\n2. Presione la tecla 'm' para medir.\n3. Presione OK para capturar el valor.");
+                            estilizarDialogo(gd, false);
+                            gd.setModal(false);
+                            gd.showDialog();
+                            while (!gd.wasOKed() && !gd.wasCanceled()) {
+                                IJ.wait(100);
+                            }
+                            if (gd.wasCanceled()) {
+                                return 0;
+                            }
+
+                            // Lo que decide es que la medicion exista, no cuanto
+                            // vale. Un fondo genuinamente negro mide 0 y es una
+                            // medicion valida: darla por ausente obligaria a
+                            // medir de nuevo algo que ya se midio bien.
+                            if (rt != null && rt.size() > 0) {
+                                val = rt.getValue("Mean", rt.size() - 1);
+                                break;
+                            }
+
+                            // El salto de linea no es cosmetico: addMessage crea
+                            // un Label si el texto es de una sola linea y un
+                            // MultiLineLabel si tiene varias. estilizarDialogo
+                            // convierte en cabecera de seccion a los Label que
+                            // contengan "MEDICION", de modo que en una sola linea
+                            // este aviso se veria como un titulo azul.
+                            GenericDialog aviso = new GenericDialog("Falta medir el fondo");
+                            aviso.addMessage("ADVERTENCIA: No se detectó ninguna medición.\nUse \"m\" para medir fondo.");
+                            estilizarDialogo(aviso, false);
+                            aviso.showDialog();
+                            if (aviso.wasCanceled()) {
+                                return 0;
+                            }
                         }
-                        if (gd.wasCanceled()) {
-                            return 0;
-                        }
-                        
-                        double val = 0;
-                        if (rt != null && rt.size() > 0) {
-                            val = rt.getValue("Mean", rt.size() - 1);
-                        }
-                        
+
                         GenericDialog gdConf = new GenericDialog("Confirmar Sustraccion");
-                        if (val == 0) {
-                            gdConf.addMessage("ADVERTENCIA: No se detectó ninguna medición.\nUse 'm' para medir el fondo antes de presionar OK.");
-                        }
                         gdConf.addNumericField("Valor a restar de todas las " + colorName.toUpperCase() + ":", val, 0);
                         estilizarDialogo(gdConf, false);
                         gdConf.showDialog();
