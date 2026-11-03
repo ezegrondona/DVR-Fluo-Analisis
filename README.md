@@ -89,6 +89,12 @@ Las dos guías se abren en el navegador, sin descargar nada:
 
 También desde los botones **GUÍA DE USO** y **GUÍA DE CALIBRACIÓN** del propio plugin.
 
+Las **guías viajan dentro del `.jar`**, así que los botones del complemento
+las abren con tu lector de PDF, sin internet y sin depender de que esta
+dirección siga existiendo. Los enlaces de arriba quedan para consultarlas
+desde la web.
+
+
 ---
 
 ## 👤 Autor

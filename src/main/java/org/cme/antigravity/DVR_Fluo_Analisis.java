@@ -67,6 +67,14 @@ implements PlugIn {
     // alcanza con mover los archivos.
     private static final String URL_GUIA = "https://github.com/ezegrondona/DVR-Fluo-Analisis/blob/main/docs/Gu%C3%ADa%20de%20Uso%20-%20DVR%20Fluo%20An%C3%A1lisis.pdf";
     private static final String URL_CALIBRACION = "https://github.com/ezegrondona/DVR-Fluo-Analisis/blob/main/docs/Gu%C3%ADa%20de%20Calibraci%C3%B3n%20FIJI-ImajeJ.pdf";
+    // Las guias viajan DENTRO del .jar, de modo que se abren sin internet.
+    // Las URL de arriba quedan como reserva, por si el equipo no sabe abrir
+    // un PDF.
+    private static final String GUIA_RECURSO = "/guias/Guía de Uso - DVR Fluo Análisis.pdf";
+    private static final String GUIA_NOMBRE = "Guia de Uso - DVR Fluo Analisis.pdf";
+    private static final String CALIBRACION_RECURSO = "/guias/Guía de Calibración FIJI-ImajeJ.pdf";
+    private static final String CALIBRACION_NOMBRE = "Guia de Calibracion FIJI-ImageJ.pdf";
+
     private boolean ir_a_calibrar = false;
 
     // --- Estetica de los dialogos ------------------------------------------
@@ -209,7 +217,7 @@ implements PlugIn {
         Button btnAcerca = new Button("ACERCA DEL PLUGIN");
         Button btnGuia = new Button("GUÍA DE USO");
         btnAcerca.addActionListener(e -> mostrarInfoPlugin());
-        btnGuia.addActionListener(e -> abrirLink(URL_GUIA));
+        btnGuia.addActionListener(e -> abrirDocumento(GUIA_RECURSO, GUIA_NOMBRE, URL_GUIA));
         panelInfo.add(btnAcerca);
         panelInfo.add(btnGuia);
         gd.addPanel(panelInfo);
@@ -218,7 +226,7 @@ implements PlugIn {
         Panel panelCalib = new Panel(new GridLayout(1, 2, 5, 0));
         Button btnGuiaCal = new Button("GUÍA DE CALIBRACIÓN");
         Button btnCalibrar = new Button("CALIBRAR");
-        btnGuiaCal.addActionListener(e -> abrirLink(URL_CALIBRACION));
+        btnGuiaCal.addActionListener(e -> abrirDocumento(CALIBRACION_RECURSO, CALIBRACION_NOMBRE, URL_CALIBRACION));
         btnCalibrar.addActionListener(e -> {
             this.ir_a_calibrar = true;
             try {
@@ -375,6 +383,48 @@ implements PlugIn {
 
         estilizarDialogo(gd, false);
         gd.showDialog();
+    }
+
+    /** Abre un documento que viaja dentro del complemento.
+     *
+     *  Se vuelca a la carpeta temporal del sistema y se abre con el lector de
+     *  PDF del usuario. Si ya estaba volcado y no se puede reescribir -lo
+     *  habitual cuando quedo abierto en el lector- se abre el que ya esta.
+     *
+     *  Si no hay forma de abrirlo localmente, se recurre al enlace publicado.
+     */
+    private void abrirDocumento(String recurso, String nombreVisible, String urlDeReserva) {
+        try {
+            java.io.File destino = new java.io.File(System.getProperty("java.io.tmpdir"), nombreVisible);
+            try {
+                java.io.InputStream origen = getClass().getResourceAsStream(recurso);
+                if (origen == null) {
+                    throw new IOException("El documento no esta dentro del complemento.");
+                }
+                try {
+                    FileOutputStream salida = new FileOutputStream(destino);
+                    try {
+                        byte[] trozo = new byte[8192];
+                        int leidos;
+                        while ((leidos = origen.read(trozo)) != -1) {
+                            salida.write(trozo, 0, leidos);
+                        }
+                    } finally {
+                        salida.close();
+                    }
+                } finally {
+                    origen.close();
+                }
+                destino.deleteOnExit();
+            } catch (IOException ex) {
+                if (!destino.isFile()) {
+                    throw ex;
+                }
+            }
+            Desktop.getDesktop().open(destino);
+        } catch (Exception e) {
+            abrirLink(urlDeReserva);
+        }
     }
 
     private void abrirLink(String url) {
