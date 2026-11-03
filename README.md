@@ -28,6 +28,41 @@
 
 ---
 
+## 🖼️ Qué imágenes espera
+
+El complemento está hecho para imágenes exportadas con **ZEN (Carl Zeiss)**,
+y reconoce la estructura y los nombres que ese programa genera.
+
+**Organización.** Una carpeta por campo, y dentro de cada una los canales
+de ese campo:
+
+```
+Carpeta elegida/
+├── Photo-22/
+│   ├── Photo_C00(DAPI)_ORG.tif
+│   └── Photo_C01(AF488)_ORG.tif
+├── Photo-23/
+│   ├── Photo_C00(DAPI)_ORG.tif
+│   └── Photo_C01(AF594)_ORG.tif
+└── ...
+```
+
+El nombre de la **carpeta** es lo que identifica a cada fila en la planilla
+de resultados.
+
+**Canales.** El canal se reconoce porque el nombre del archivo contiene
+`DAPI`, `AF488` o `AF594`. No importa el resto del nombre ni las
+mayúsculas: lo único que se busca es ese texto.
+
+Si tus imágenes vienen de otro equipo, alcanza con que respeten esas dos
+condiciones —una carpeta por campo y el canal en el nombre del archivo—
+para que funcione.
+
+> El complemento **no modifica tus archivos**: no los renombra, no los mueve
+> y no los sobrescribe. Solo los lee.
+
+---
+
 ## 📥 Descarga
 
 Descargá la última versión del `.jar` desde la sección **Releases** de este repositorio.
@@ -86,6 +121,33 @@ las correcciones y comentarios que tiene se escribieron sobre ese
 código recuperado. Por eso algunos nombres de variable son los que
 eligió la herramienta en lugar de los originales. El código publicado
 acá es exactamente el que compila el `.jar` que se distribuye.
+
+---
+
+## 🔬 Sustracción del fondo
+
+El fondo se resta a **cada imagen por separado**, porque no es el mismo en
+todas las fotos de una tanda: en el material con que se probó esta versión
+llegó a variar al doble dentro del mismo canal.
+
+Hay dos modos, y se eligen con la casilla **Automática (SMO)** de la ventana
+principal:
+
+- **Automática** (por omisión). El fondo se estima solo, imagen por imagen,
+  con el *Silver Mountain Operator*.
+- **Manual**. Se mide una vez, dibujando un rectángulo sobre el fondo, y ese
+  valor se aplica a todas las imágenes del canal.
+
+En los dos casos, la planilla incluye una columna **Fondo restado** con el
+valor que efectivamente se le restó a cada imagen, de modo que el resultado
+quede trazable y los dos modos se puedan comparar.
+
+El método automático es el descrito en Silberberg & Grecco,
+*Robust and unbiased estimation of the background distribution for automated
+quantitative imaging*, J. Opt. Soc. Am. A (2023),
+[doi:10.1364/JOSAA.477468](https://doi.org/10.1364/JOSAA.477468).
+Si usás esta función en un trabajo publicado, corresponde citar ese artículo
+además de este complemento.
 
 ---
 

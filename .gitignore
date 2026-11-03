@@ -33,3 +33,9 @@ nbproject/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Imagenes de prueba. Viven en la carpeta del repositorio por comodidad,
+# pero no son del proyecto y pesan cientos de MB.
+Fotos medidas*/
+*.tif
+*.tiff

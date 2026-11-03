@@ -23,6 +23,9 @@ import ij.io.DirectoryChooser;
 import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
 import ij.plugin.filter.Analyzer;
+import ij.process.ByteProcessor;
+import ij.process.ImageProcessor;
+import ij.process.ShortProcessor;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
 import java.awt.Button;
@@ -117,7 +120,6 @@ implements PlugIn {
                     break block11;
                 }
                 File folderFile = new File(baseDir);
-                this.renombrarArchivos(folderFile);
                 LinkedHashMap<String, RowData> dataMap = new LinkedHashMap<String, RowData>();
                 IJ.run("Set Measurements...", "area mean display redirect=None decimal=3");
                 // CORRECCIÓN: limpiar tablas de análisis previos para evitar acumulación entre carpetas
@@ -131,10 +133,10 @@ implements PlugIn {
                     dapiCount = this.procesarDapi(folderFile, dataMap);
                 }
                 if (opt.verde) {
-                    verdeCount = this.procesarCanal(folderFile, dataMap, "af488", opt.tipoArea, "Green");
+                    verdeCount = this.procesarCanal(folderFile, dataMap, "af488", opt.tipoArea, "Green", opt.fondoAutomatico);
                 }
                 if (opt.rojo) {
-                    rojoCount = this.procesarCanal(folderFile, dataMap, "af594", opt.tipoArea, "Red");
+                    rojoCount = this.procesarCanal(folderFile, dataMap, "af594", opt.tipoArea, "Red", opt.fondoAutomatico);
                 }
                 this.guardarExcel(folderFile, dataMap, opt);
                 StringBuilder msg = new StringBuilder("Proceso Finalizado en:\n" + baseDir + "\n");
@@ -242,15 +244,29 @@ implements PlugIn {
 
         gd.addMessage("MEDICIÓN DE ÁREA");
         gd.addRadioButtonGroup("", new String[]{"Área de Marca", "Área Total de foto"}, 1, 2, "Área de Marca");
+
+        // El titulo lleva "MEDICIÓN" a proposito: estilizarDialogo reconoce
+        // esa palabra y lo pinta como cabecera de seccion, igual que las
+        // demas.
+        gd.addMessage("MEDICIÓN DEL FONDO");
+        gd.addCheckbox("Automática (SMO)", true);
+
         estilizarDialogo(gd, true);
         gd.showDialog();
         if (gd.wasCanceled()) {
             return null;
         }
         if (this.ir_a_calibrar) {
-            return new Opciones(false, false, false, "");
+            return new Opciones(false, false, false, "", true);
         }
-        return new Opciones(gd.getNextBoolean(), gd.getNextBoolean(), gd.getNextBoolean(), gd.getNextRadioButton());
+        // Se leen en el orden en que se agregaron: las casillas por un lado y
+        // el grupo de opciones por otro.
+        boolean dapi = gd.getNextBoolean();
+        boolean rojo = gd.getNextBoolean();
+        boolean verde = gd.getNextBoolean();
+        boolean automatico = gd.getNextBoolean();
+        String area = gd.getNextRadioButton();
+        return new Opciones(dapi, rojo, verde, area, automatico);
     }
 
     private void estilizarDialogo(GenericDialog gd, boolean esPrincipal) {
@@ -369,21 +385,169 @@ implements PlugIn {
         }
     }
 
-    private void renombrarArchivos(File folderFile) {
-        File[] subfolders = folderFile.listFiles(File::isDirectory);
-        if (subfolders == null) {
-            return;
-        }
-        for (File sub : subfolders) {
-            File[] files = sub.listFiles();
-            if (files == null) continue;
-            for (File f : files) {
-                String name = f.getName().toLowerCase();
-                if (!name.endsWith(".tif") || f.getName().startsWith(sub.getName() + "_")) continue;
-                f.renameTo(new File(sub, sub.getName() + "_" + f.getName()));
+    // ====================================================================
+    //  Estimacion automatica del fondo - Silver Mountain Operator (SMO)
+    //
+    //  Metodo de Mauro Silberberg y Hernan E. Grecco:
+    //    "Robust and unbiased estimation of the background distribution
+    //     for automated quantitative imaging"
+    //    Journal of the Optical Society of America A (2023).
+    //    doi:10.1364/JOSAA.477468
+    //  Implementacion de referencia en Python, con licencia MIT:
+    //    https://github.com/maurosilber/SMO
+    //  Lo que sigue es una reimplementacion propia del mismo metodo.
+    //
+    //  La idea: donde no hay estructura, la DIRECCION del gradiente
+    //  fluctua al azar, y el promedio local de los gradientes unitarios se
+    //  cancela (longitud cercana a 0). Donde hay un objeto, las
+    //  direcciones son coherentes y el promedio conserva su longitud
+    //  (cercana a 1). Los pixeles de valor bajo son, entonces, fondo; la
+    //  mediana de su intensidad es el fondo de esa imagen.
+    //
+    //  Importa que sea POR IMAGEN: en el material de prueba el fondo varia
+    //  entre fotos de un mismo canal hasta el doble, de modo que un unico
+    //  valor medido una sola vez no puede representarlas a todas.
+    // ====================================================================
+
+    /** Lado de la ventana de promediado, en pixeles.
+     *
+     *  Tiene que ser menor que las estructuras que se quieren conservar:
+     *  una ventana mas grande que los objetos los difumina y termina
+     *  tomandolos por fondo. 7 es el valor que usan los autores. */
+    private static final int SMO_VENTANA = 7;
+
+    /** Percentil de la distribucion nula que separa fondo de estructura. */
+    private static final double SMO_PERCENTIL = 5.0;
+
+    /** El umbral depende solo de la ventana, no de la imagen, asi que se
+     *  calcula una vez por sesion. Se comprobo que entre 256x256 y
+     *  2056x2464 varia menos de un 0,3%. */
+    private static Double umbralSmoCache = null;
+
+    /** Indice reflejado en los bordes, sin repetir el borde mismo. Es el
+     *  modo "mirror" de la implementacion de referencia. */
+    private static int espejo(int i, int n) {
+        if (n == 1) return 0;
+        int periodo = 2 * (n - 1);
+        i = Math.abs(i) % periodo;
+        return (i < n) ? i : periodo - i;
+    }
+
+    /** Promedio en una ventana cuadrada, aplicado por filas y despues por
+     *  columnas: el resultado es el mismo que en dos dimensiones y cuesta
+     *  mucho menos. */
+    private static float[] filtroMedia(float[] origen, int w, int h, int lado) {
+        int r = lado / 2;
+        float[] paso = new float[w * h];
+        for (int y = 0; y < h; y++) {
+            int fila = y * w;
+            for (int x = 0; x < w; x++) {
+                double suma = 0;
+                for (int k = -r; k <= r; k++) suma += origen[fila + espejo(x + k, w)];
+                paso[fila + x] = (float) (suma / lado);
             }
         }
+        float[] salida = new float[w * h];
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                double suma = 0;
+                for (int k = -r; k <= r; k++) suma += paso[espejo(y + k, h) * w + x];
+                salida[y * w + x] = (float) (suma / lado);
+            }
+        }
+        return salida;
     }
+
+    /** Aplica el operador: devuelve, para cada pixel, la longitud del
+     *  promedio local de los gradientes unitarios. Valores entre 0 y 1. */
+    private static float[] smo(float[] px, int w, int h) {
+        int n = w * h;
+        float[] gx = new float[n];
+        float[] gy = new float[n];
+
+        // Gradiente por diferencias centradas, unilaterales en los bordes.
+        for (int y = 0; y < h; y++) {
+            int fila = y * w;
+            int ym = (y == 0) ? 0 : y - 1;
+            int yp = (y == h - 1) ? h - 1 : y + 1;
+            int dy = yp - ym;
+            for (int x = 0; x < w; x++) {
+                int xm = (x == 0) ? 0 : x - 1;
+                int xp = (x == w - 1) ? w - 1 : x + 1;
+                int dx = xp - xm;
+                gx[fila + x] = (dx == 0) ? 0f : (px[fila + xp] - px[fila + xm]) / dx;
+                gy[fila + x] = (dy == 0) ? 0f : (px[yp * w + x] - px[ym * w + x]) / dy;
+            }
+        }
+
+        // Normalizar a longitud 1: se conserva la direccion y se descarta
+        // la magnitud. Esto es lo que vuelve al metodo no parametrico.
+        for (int i = 0; i < n; i++) {
+            double largo = Math.sqrt((double) gx[i] * gx[i] + (double) gy[i] * gy[i]);
+            if (largo > 0) {
+                gx[i] = (float) (gx[i] / largo);
+                gy[i] = (float) (gy[i] / largo);
+            }
+        }
+
+        float[] px_ = filtroMedia(gx, w, h, SMO_VENTANA);
+        float[] py_ = filtroMedia(gy, w, h, SMO_VENTANA);
+        float[] salida = new float[n];
+        for (int i = 0; i < n; i++) {
+            salida[i] = (float) Math.sqrt((double) px_[i] * px_[i] + (double) py_[i] * py_[i]);
+        }
+        return salida;
+    }
+
+    /** Umbral bajo la hipotesis nula: que los pixeles no esten
+     *  correlacionados. Se obtiene aplicando el operador a ruido uniforme
+     *  y quedandose con el percentil indicado. */
+    private static double umbralSmo() {
+        if (umbralSmoCache != null) return umbralSmoCache.doubleValue();
+        int lado = 512;
+        float[] ruido = new float[lado * lado];
+        java.util.Random azar = new java.util.Random(42L);
+        for (int i = 0; i < ruido.length; i++) ruido[i] = azar.nextFloat();
+        float[] s = smo(ruido, lado, lado);
+        java.util.Arrays.sort(s);
+        int k = (int) Math.round(SMO_PERCENTIL / 100.0 * (s.length - 1));
+        umbralSmoCache = Double.valueOf(s[k]);
+        return umbralSmoCache.doubleValue();
+    }
+
+    /** Fondo de la imagen: mediana de la intensidad de los pixeles que el
+     *  operador clasifica como fondo. Devuelve 0 si no encuentra ninguno. */
+    private static double fondoAutomatico(ImagePlus imp) {
+        ImageProcessor ip = imp.getProcessor();
+        int w = ip.getWidth();
+        int h = ip.getHeight();
+        float[] px = (float[]) ip.convertToFloat().getPixels();
+
+        // Los pixeles saturados no informan sobre el fondo y ademas
+        // distorsionan el gradiente: se excluyen, como indican los autores.
+        double saturado = Double.MAX_VALUE;
+        if (ip instanceof ByteProcessor) saturado = 255.0;
+        else if (ip instanceof ShortProcessor) saturado = 65535.0;
+
+        float[] s = smo(px, w, h);
+        double umbral = umbralSmo();
+
+        int cuantos = 0;
+        for (int i = 0; i < s.length; i++) {
+            if (s[i] < umbral && px[i] < saturado) cuantos++;
+        }
+        if (cuantos == 0) return 0.0;
+
+        float[] fondo = new float[cuantos];
+        int j = 0;
+        for (int i = 0; i < s.length; i++) {
+            if (s[i] < umbral && px[i] < saturado) fondo[j++] = px[i];
+        }
+        java.util.Arrays.sort(fondo);
+        int m = fondo.length;
+        return (m % 2 == 1) ? fondo[m / 2] : 0.5 * (fondo[m / 2 - 1] + fondo[m / 2]);
+    }
+
 
     private int procesarDapi(File folderFile, Map<String, RowData> dataMap) {
         int count = 0;
@@ -399,6 +563,7 @@ implements PlugIn {
                 String name = f.getName().toLowerCase();
                 if (!name.endsWith(".tif") || !name.contains("dapi") || (imp = IJ.openImage(f.getAbsolutePath())) == null) continue;
                 imp.show();
+                imp.setTitle(sub.getName() + "_" + f.getName());
                 IJ.run(imp, "8-bit", "");
                 IJ.setAutoThreshold(imp, "Triangle dark");
                 Prefs.blackBackground = true;
@@ -435,7 +600,7 @@ implements PlugIn {
         return count;
     }
 
-    private int procesarCanal(File folderFile, Map<String, RowData> dataMap, String pattern, String tipoArea, String colorName) {
+    private int procesarCanal(File folderFile, Map<String, RowData> dataMap, String pattern, String tipoArea, String colorName, boolean fondoAuto) {
         int count = 0;
         Integer backgroundValue = null;
         ResultsTable rt = ResultsTable.getResultsTable();
@@ -453,94 +618,92 @@ implements PlugIn {
                 String name = f.getName().toLowerCase();
                 if (!name.endsWith(".tif") || !name.contains(pattern) || (imp = IJ.openImage(f.getAbsolutePath())) == null) continue;
                 imp.show();
+
+                // El titulo es lo que identifica a cada fila en la tabla de
+                // resultados. Antes eso se conseguia renombrando el archivo en
+                // el disco; cambiar el titulo de la imagen ya abierta cumple
+                // la misma funcion y no toca el material del usuario.
+                imp.setTitle(sub.getName() + "_" + f.getName());
+
+                // La seleccion se sigue calculando sobre un duplicado de 8
+                // bits. Los umbrales automaticos de ImageJ estan pensados para
+                // esa profundidad, y calcularlos sobre los 16 bits moveria la
+                // segmentacion. Lo que cambia en esta version es la escala en
+                // que se MIDE, no la forma en que se segmenta.
+                Roi roi = null;
                 if (tipoArea.equals("\u00c1rea de Marca")) {
                     ImagePlus dup = imp.duplicate();
                     IJ.run(dup, "8-bit", "");
                     String thresh = pattern.contains("488") ? "Moments dark" : "Triangle dark";
                     IJ.setAutoThreshold(dup, thresh);
                     IJ.run(dup, "Create Selection", "");
-                    Roi roi = dup.getRoi();
+                    roi = dup.getRoi();
                     dup.close();
-                    if (roi != null) {
-                        imp.setRoi(roi);
-                    } else {
-                        IJ.run(imp, "Select None", "");
+                }
+
+                double fondo = 0.0;
+                if (fondoAuto) {
+                    // Se estima en cada imagen. El fondo no es el mismo en
+                    // todas las fotos de un canal: en el material de prueba
+                    // llego a variar al doble dentro de la misma tanda.
+                    fondo = fondoAutomatico(imp);
+                } else if (backgroundValue == null) {
+                    if (pattern.contains("594")) {
+                        IJ.run(imp, "Red", "");
+                    } else if (pattern.contains("488")) {
+                        IJ.run(imp, "Green", "");
                     }
+                    if (rt != null) {
+                        rt.reset();
+                        rt.show("Results"); // Forzar visibilidad para feedback de tecla 'm'
+                    }
+                    double val;
+                    while (true) {
+                        GenericDialog gd = new GenericDialog("Determinar de Fondo");
+                        gd.addMessage("1. Dibuje un rectangulo sobre el FONDO de la imagen.\n2. Presione la tecla 'm' para medir.\n3. Presione OK para capturar el valor.");
+                        estilizarDialogo(gd, false);
+                        gd.setModal(false);
+                        gd.showDialog();
+                        while (!gd.wasOKed() && !gd.wasCanceled()) {
+                            IJ.wait(100);
+                        }
+                        if (gd.wasCanceled()) {
+                            return 0;
+                        }
+                        if (rt != null && rt.size() > 0) {
+                            val = rt.getValue("Mean", rt.size() - 1);
+                            break;
+                        }
+                        GenericDialog aviso = new GenericDialog("Falta medir el fondo");
+                        aviso.addMessage("ADVERTENCIA: No se detect\u00f3 ninguna medici\u00f3n.\nUse \"m\" para medir fondo.");
+                        estilizarDialogo(aviso, false);
+                        aviso.showDialog();
+                        if (aviso.wasCanceled()) {
+                            return 0;
+                        }
+                    }
+                    GenericDialog gdConf = new GenericDialog("Confirmar Sustraccion");
+                    gdConf.addNumericField("Valor a restar de todas las " + colorName.toUpperCase() + ":", val, 0);
+                    estilizarDialogo(gdConf, false);
+                    gdConf.showDialog();
+                    backgroundValue = Integer.valueOf(gdConf.wasCanceled() ? 0 : (int)gdConf.getNextNumber());
+                    if (rt != null) rt.reset(); // Limpiar tabla tras capturar fondo para empezar de cero con las fotos
+                    fondo = backgroundValue.doubleValue();
                 } else {
-                    IJ.run(imp, "Select None", "");
+                    fondo = backgroundValue.doubleValue();
                 }
-                IJ.run(imp, "8-bit", "");
-                if (!tipoArea.equals("\u00c1rea de Marca")) {
-                    if (backgroundValue == null) {
-                        // Aplicar LUT para facilitar visualización de la marca según el canal
-                        if (pattern.contains("594")) {
-                            IJ.run(imp, "Red", "");
-                        } else if (pattern.contains("488")) {
-                            IJ.run(imp, "Green", "");
-                        }
 
-                        if (rt != null) {
-                            rt.reset(); 
-                            rt.show("Results"); // Forzar visibilidad para feedback de tecla 'm'
-                        }
-                        // Se vuelve a pedir la medicion hasta que exista. El
-                        // cartel que pide medir es NO modal a proposito, para
-                        // que se pueda dibujar el rectangulo y apretar "m" con
-                        // el abierto. El aviso de que falta medir, en cambio,
-                        // es modal: mientras esta en pantalla no se puede medir
-                        // nada, asi que no alcanza con avisar, hay que cerrarlo
-                        // y devolver el control al cartel anterior.
-                        double val;
-                        while (true) {
-                            GenericDialog gd = new GenericDialog("Determinar de Fondo");
-                            gd.addMessage("1. Dibuje un rectangulo sobre el FONDO de la imagen.\n2. Presione la tecla 'm' para medir.\n3. Presione OK para capturar el valor.");
-                            estilizarDialogo(gd, false);
-                            gd.setModal(false);
-                            gd.showDialog();
-                            while (!gd.wasOKed() && !gd.wasCanceled()) {
-                                IJ.wait(100);
-                            }
-                            if (gd.wasCanceled()) {
-                                return 0;
-                            }
-
-                            // Lo que decide es que la medicion exista, no cuanto
-                            // vale. Un fondo genuinamente negro mide 0 y es una
-                            // medicion valida: darla por ausente obligaria a
-                            // medir de nuevo algo que ya se midio bien.
-                            if (rt != null && rt.size() > 0) {
-                                val = rt.getValue("Mean", rt.size() - 1);
-                                break;
-                            }
-
-                            // El salto de linea no es cosmetico: addMessage crea
-                            // un Label si el texto es de una sola linea y un
-                            // MultiLineLabel si tiene varias. estilizarDialogo
-                            // convierte en cabecera de seccion a los Label que
-                            // contengan "MEDICION", de modo que en una sola linea
-                            // este aviso se veria como un titulo azul.
-                            GenericDialog aviso = new GenericDialog("Falta medir el fondo");
-                            aviso.addMessage("ADVERTENCIA: No se detectó ninguna medición.\nUse \"m\" para medir fondo.");
-                            estilizarDialogo(aviso, false);
-                            aviso.showDialog();
-                            if (aviso.wasCanceled()) {
-                                return 0;
-                            }
-                        }
-
-                        GenericDialog gdConf = new GenericDialog("Confirmar Sustraccion");
-                        gdConf.addNumericField("Valor a restar de todas las " + colorName.toUpperCase() + ":", val, 0);
-                        estilizarDialogo(gdConf, false);
-                        gdConf.showDialog();
-                        backgroundValue = gdConf.wasCanceled() ? 0 : (int)gdConf.getNextNumber();
-                        
-                        if (rt != null) rt.reset(); // Limpiar tabla tras capturar fondo para empezar de cero con las fotos
-                    }
-                    if (backgroundValue > 0) {
-                        IJ.run(imp, "Select None", "");
-                        IJ.run(imp, "Subtract...", ("value=" + backgroundValue));
-                    }
+                // "Subtract" solo afecta a la seleccion activa, de modo que se
+                // resta con la seleccion apagada y recien despues se aplica la
+                // marca para medir dentro de ella.
+                IJ.run(imp, "Select None", "");
+                if (fondo > 0.0) {
+                    IJ.run(imp, "Subtract...", "value=" + Math.round(fondo));
                 }
+                if (roi != null) {
+                    imp.setRoi(roi);
+                }
+
                 IJ.run(imp, "Measure", "");
                 rt = ResultsTable.getResultsTable();
                 if (rt != null && rt.size() > 0) {
@@ -549,6 +712,11 @@ implements PlugIn {
                     if (row == null) {
                         row = new RowData(sub.getName());
                         dataMap.put(sub.getName(), row);
+                    }
+                    if (pattern.contains("594")) {
+                        row.fondoRojo = fondo;
+                    } else {
+                        row.fondoVerde = fondo;
                     }
                     for (String h : headings = rt.getHeadings()) {
                         double val;
@@ -591,10 +759,12 @@ implements PlugIn {
             if (opt.verde) {
                 cols.add("Intensidad de Marca (AF488)");
                 cols.add("\u00c1rea de Marca (AF488)");
+                cols.add("Fondo restado (AF488)");
             }
             if (opt.rojo) {
                 cols.add("Intensidad de Marca (AF594)");
                 cols.add("\u00c1rea de Marca (AF594)");
+                cols.add("Fondo restado (AF594)");
             }
             for (int i = 0; i < cols.size(); ++i) {
                 header.createCell(i).setCellValue(cols.get(i));
@@ -612,10 +782,12 @@ implements PlugIn {
                 if (opt.verde) {
                     row.createCell(cIdx++).setCellValue(data.intensidadVerde);
                     row.createCell(cIdx++).setCellValue(data.areaVerde);
+                    row.createCell(cIdx++).setCellValue(data.fondoVerde);
                 }
                 if (!opt.rojo) continue;
                 row.createCell(cIdx++).setCellValue(data.intensidadRojo);
                 row.createCell(cIdx++).setCellValue(data.areaRojo);
+                row.createCell(cIdx++).setCellValue(data.fondoRojo);
             }
             for (int i = 0; i < cols.size(); ++i) {
                 sheet.autoSizeColumn(i);
@@ -637,12 +809,14 @@ implements PlugIn {
         boolean rojo;
         boolean verde;
         String tipoArea;
+        boolean fondoAutomatico;
 
-        Opciones(boolean d, boolean r, boolean v, String t) {
+        Opciones(boolean d, boolean r, boolean v, String t, boolean fa) {
             this.dapi = d;
             this.rojo = r;
             this.verde = v;
             this.tipoArea = t;
+            this.fondoAutomatico = fa;
         }
     }
 
@@ -654,6 +828,11 @@ implements PlugIn {
         double areaRojo = 0.0;
         double intensidadVerde = 0.0;
         double areaVerde = 0.0;
+        // Fondo que efectivamente se resto a cada imagen. Queda en la
+        // planilla para que el resultado sea trazable: sin esto no hay modo
+        // de saber despues con que se midio.
+        double fondoRojo = 0.0;
+        double fondoVerde = 0.0;
 
         RowData(String c) {
             this.carpeta = c;

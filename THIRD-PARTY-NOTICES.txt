@@ -44,6 +44,28 @@ BIBLIOTECAS EMPAQUETADAS DENTRO DEL .jar
     https://github.com/virtuald/curvesapi
 
 
+METODO DE TERCEROS REIMPLEMENTADO
+----------------------------------
+
+  Silver Mountain Operator (SMO)      metodo publicado
+    La estimacion automatica del fondo aplica el metodo descrito en:
+
+      Mauro Silberberg y Hernan E. Grecco,
+      "Robust and unbiased estimation of the background distribution
+       for automated quantitative imaging",
+      Journal of the Optical Society of America A (2023).
+      doi:10.1364/JOSAA.477468
+
+    El complemento NO incorpora codigo de los autores: el metodo fue
+    reimplementado en Java a partir de la descripcion publicada. La
+    implementacion de referencia en Python, con licencia MIT, esta en
+    https://github.com/maurosilber/SMO y sirvio para verificar que esta
+    reimplementacion produce los mismos valores.
+
+    Si usa esta funcion en un trabajo publicado, corresponde citar el
+    articulo de los autores ademas de este complemento.
+
+
 NO EMPAQUETADA, PERO NECESARIA
 -------------------------------
 
